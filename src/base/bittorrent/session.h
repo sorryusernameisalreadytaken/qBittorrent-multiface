@@ -322,8 +322,10 @@ namespace BitTorrent
         void setPerformanceWarningEnabled(bool enable);
         int saveResumeDataInterval() const;
         void setSaveResumeDataInterval(int value);
-        int port() const;
-        void setPort(int port);
+        QMap<QString, QVariant> ports() const;
+        void setPorts(const QMap<QString, QVariant> ports);
+        QMap<QString, QVariant> portsEnabled() const;
+        void setPortsEnabled(const QMap<QString, QVariant> portsEnabled);
         QString networkInterface() const;
         void setNetworkInterface(const QString &iface);
         QString networkInterfaceName() const;
@@ -530,6 +532,8 @@ namespace BitTorrent
 
         void findIncompleteFiles(const TorrentInfo &torrentInfo, const Path &savePath
                                  , const Path &downloadPath, const PathList &filePaths = {}) const;
+
+        QStringList getNetworkInterfaces() const;
 
     signals:
         void startupProgressUpdated(int progress);
@@ -767,7 +771,8 @@ namespace BitTorrent
         CachedSettingValue<bool> m_isBandwidthSchedulerEnabled;
         CachedSettingValue<bool> m_isPerformanceWarningEnabled;
         CachedSettingValue<int> m_saveResumeDataInterval;
-        CachedSettingValue<int> m_port;
+        CachedSettingValue<QMap<QString, QVariant>> m_ports;
+        CachedSettingValue<QMap<QString, QVariant>> m_portsEnabled;
         CachedSettingValue<QString> m_networkInterface;
         CachedSettingValue<QString> m_networkInterfaceName;
         CachedSettingValue<QString> m_networkInterfaceAddress;
