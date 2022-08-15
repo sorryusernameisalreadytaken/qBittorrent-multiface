@@ -1810,6 +1810,12 @@ void Session::configureNetworkInterfaces(lt::settings_pack &settingsPack)
 
     outgoingInterfaces = getNetworkInterfaces();
 
+    if (endpoints.empty() && !outgoingInterfaces.empty()) {
+        // libtorrent doesn't seem to like having no listen port, so add just one.
+        endpoints.append(outgoingInterfaces[0] + u":0"_qs);
+    }
+
+
     const QString finalEndpoints = endpoints.join(u',');
     settingsPack.set_str(lt::settings_pack::listen_interfaces, finalEndpoints.toStdString());
     LogMsg(tr("Trying to listen on the following list of IP addresses: \"%1\"").arg(finalEndpoints));
