@@ -1805,6 +1805,7 @@ void Session::configureNetworkInterfaces(lt::settings_pack &settingsPack)
     for (auto i = ports.constBegin(); i != ports.constEnd(); ++i) {
         if (m_portsEnabled.get().value(i.key()).toBool() && i.value().toInt() != 0) {
             endpoints.append(i.key() + u":"_qs + i.value().toString());
+	    outgoingInterfaces.append(i.key());
         }
     }
 
