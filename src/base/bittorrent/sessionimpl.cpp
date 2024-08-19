@@ -70,6 +70,7 @@
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QString>
+#include <QMap>
 #include <QThread>
 #include <QThreadPool>
 #include <QTimer>
@@ -483,7 +484,8 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_isPerformanceWarningEnabled(BITTORRENT_SESSION_KEY(u"PerformanceWarning"_s), false)
     , m_saveResumeDataInterval(BITTORRENT_SESSION_KEY(u"SaveResumeDataInterval"_s), 60)
     , m_shutdownTimeout(BITTORRENT_SESSION_KEY(u"ShutdownTimeout"_s), -1)
-    , m_port(BITTORRENT_SESSION_KEY(u"Port"_s), -1)
+    , m_ports(BITTORRENT_SESSION_KEY(u"Ports"_s))
+    , m_portsEnabled(BITTORRENT_SESSION_KEY(u"PortsEnabled"_qs))
     , m_sslEnabled(BITTORRENT_SESSION_KEY(u"SSL/Enabled"_s), false)
     , m_sslPort(BITTORRENT_SESSION_KEY(u"SSL/Port"_s), -1)
     , m_networkInterface(BITTORRENT_SESSION_KEY(u"Interface"_s))
@@ -537,8 +539,6 @@ SessionImpl::SessionImpl(QObject *parent)
     // It is required to perform async access to libtorrent sequentially
     m_asyncWorker->setMaxThreadCount(1);
 
-    if (port() < 0)
-        m_port = Utils::Random::rand(1024, 65535);
     if (sslPort() < 0)
     {
         m_sslPort = Utils::Random::rand(1024, 65535);
@@ -2066,8 +2066,6 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
     if (m_listenInterfaceConfigured)
         return;
 
-    if (port() > 0)  // user has specified port number
-        settingsPack.set_int(lt::settings_pack::max_retry_port_bind, 0);
 
     QStringList endpoints;
     QStringList outgoingInterfaces;
@@ -2121,6 +2119,21 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
 #endif
         }
     }
+
+    auto ports = m_ports.get();
+    for (auto i = ports.constBegin(); i != ports.constEnd(); ++i) {
+        if (m_portsEnabled.get().value(i.key()).toBool() && i.value().toInt() != 0) {
+            endpoints.append(i.key() + u":"_qs + i.value().toString());
+        }
+    }
+
+    outgoingInterfaces = getNetworkInterfaces();
+
+    if (endpoints.empty() && !outgoingInterfaces.empty()) {
+        // libtorrent doesn't seem to like having no listen port, so add just one.
+        endpoints.append(outgoingInterfaces[0] + u":0"_qs);
+    }
+
 
     const QString finalEndpoints = endpoints.join(u',');
     settingsPack.set_str(lt::settings_pack::listen_interfaces, finalEndpoints.toStdString());
@@ -3216,6 +3229,44 @@ void SessionImpl::setDownloadPath(const Path &path)
 }
 
 QStringList SessionImpl::getListeningIPs() const
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+void Session::networkOnlineStateChanged(const bool online)
+{
+    LogMsg(tr("System network status changed to %1", "e.g: System network status changed to ONLINE").arg(online ? tr("ONLINE") : tr("OFFLINE")), Log::INFO);
+}
+
+void Session::networkConfigurationChange(const QNetworkConfiguration &cfg)
+{
+    const QString configuredInterfaceName = networkInterface();
+    // Empty means "Any Interface". In this case libtorrent has binded to 0.0.0.0 so any change to any interface will
+    // be automatically picked up. Otherwise we would rebinding here to 0.0.0.0 again.
+    if (configuredInterfaceName.isEmpty()) return;
+
+    const QString changedInterface = cfg.name();
+
+    if (configuredInterfaceName == changedInterface)
+    {
+        LogMsg(tr("Network configuration of %1 has changed, refreshing session binding", "e.g: Network configuration of tun0 has changed, refreshing session binding").arg(changedInterface), Log::INFO);
+        configureListeningInterface();
+    }
+}
+#endif
+
+QStringList SessionImpl::getNetworkInterfaces() const {
+    QStringList outIfaces;
+
+    const QList<QNetworkInterface> ifaces = QNetworkInterface::allInterfaces();
+    QList<QNetworkInterface>::const_iterator i;
+    for (i = ifaces.constBegin(); i != ifaces.constEnd(); ++i) {
+        if (i->name() == u"lo"_qs) continue;
+        if (i->addressEntries().empty()) continue;
+        outIfaces.append(i->name());
+    }
+
+    return outIfaces;
+}
+
+QStringList Session::getListeningIPs() const
 {
     QStringList IPs;
 
@@ -3528,58 +3579,24 @@ void SessionImpl::setShutdownTimeout(const int value)
     m_shutdownTimeout = value;
 }
 
-int SessionImpl::port() const
+int SessionImpl::ports() const
 {
-    return m_port;
+    return m_ports;
 }
 
-void SessionImpl::setPort(const int port)
+void SessionImpl::setPorts(const QMap<QString, QVariant> ports)
 {
-    if (port != m_port)
-    {
-        m_port = port;
-        configureListeningInterface();
+    QMap<QString, QVariant> m_ports2 = m_ports.get();
+    m_ports2.insert(ports);
+    m_ports = m_ports2;
+    configureListeningInterface();
 
         if (isReannounceWhenAddressChangedEnabled())
             reannounceToAllTrackers();
     }
 }
 
-bool SessionImpl::isSSLEnabled() const
-{
-    return m_sslEnabled;
-}
-
-void SessionImpl::setSSLEnabled(const bool enabled)
-{
-    if (enabled == isSSLEnabled())
-        return;
-
-    m_sslEnabled = enabled;
-    configureListeningInterface();
-
-    if (isReannounceWhenAddressChangedEnabled())
-        reannounceToAllTrackers();
-}
-
-int SessionImpl::sslPort() const
-{
-    return m_sslPort;
-}
-
-void SessionImpl::setSSLPort(const int port)
-{
-    if (port == sslPort())
-        return;
-
-    m_sslPort = port;
-    configureListeningInterface();
-
-    if (isReannounceWhenAddressChangedEnabled())
-        reannounceToAllTrackers();
-}
-
-QString SessionImpl::networkInterface() const
+QString Session::networkInterface() const
 {
     return m_networkInterface;
 }
