@@ -237,7 +237,7 @@ namespace BitTorrent
         int shutdownTimeout() const override;
         void setShutdownTimeout(int value) override;
         int port() const override;
-        void setPort(int port) override;
+        void setPorts(const QMap<QString, QVariant> ports) override;
         bool isSSLEnabled() const override;
         void setSSLEnabled(bool enabled) override;
         int sslPort() const override;

@@ -236,24 +236,6 @@ namespace BitTorrent
         virtual Path finishedTorrentExportDirectory() const = 0;
         virtual void setFinishedTorrentExportDirectory(const Path &path) = 0;
 
-<<<<<<< HEAD
-        virtual int globalDownloadSpeedLimit() const = 0;
-        virtual void setGlobalDownloadSpeedLimit(int limit) = 0;
-        virtual int globalUploadSpeedLimit() const = 0;
-        virtual void setGlobalUploadSpeedLimit(int limit) = 0;
-        virtual int altGlobalDownloadSpeedLimit() const = 0;
-        virtual void setAltGlobalDownloadSpeedLimit(int limit) = 0;
-        virtual int altGlobalUploadSpeedLimit() const = 0;
-        virtual void setAltGlobalUploadSpeedLimit(int limit) = 0;
-        virtual int downloadSpeedLimit() const = 0;
-        virtual void setDownloadSpeedLimit(int limit) = 0;
-        virtual int uploadSpeedLimit() const = 0;
-        virtual void setUploadSpeedLimit(int limit) = 0;
-        virtual bool isAltGlobalSpeedLimitEnabled() const = 0;
-        virtual void setAltGlobalSpeedLimitEnabled(bool enabled) = 0;
-        virtual bool isBandwidthSchedulerEnabled() const = 0;
-        virtual void setBandwidthSchedulerEnabled(bool enabled) = 0;
-=======
         bool isPerformanceWarningEnabled() const;
         void setPerformanceWarningEnabled(bool enable);
         int saveResumeDataInterval() const;
@@ -408,7 +390,6 @@ namespace BitTorrent
         void setBannedIPs(const QStringList &newList);
         ResumeDataStorageType resumeDataStorageType() const;
         void setResumeDataStorageType(ResumeDataStorageType type);
->>>>>>> qbitmfbt/master
 
         virtual bool isPerformanceWarningEnabled() const = 0;
         virtual void setPerformanceWarningEnabled(bool enable) = 0;
@@ -663,9 +644,6 @@ namespace BitTorrent
         void trackersRemoved(Torrent *torrent, const QStringList &trackers);
         void trackerSuccess(Torrent *torrent, const QString &tracker);
         void trackerWarning(Torrent *torrent, const QString &tracker);
-<<<<<<< HEAD
-        void trackerEntryStatusesUpdated(Torrent *torrent, const QHash<QString, TrackerEntryStatus> &updatedTrackers);
-=======
         void trackerEntriesUpdated(const QHash<Torrent *, QSet<QString>> &updateInfos);
 
     private slots:
@@ -952,6 +930,5 @@ namespace BitTorrent
         bool m_needUpgradeDownloadPath = false;
 
         static Session *m_instance;
->>>>>>> qbitmfbt/master
     };
 }
