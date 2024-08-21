@@ -41,6 +41,7 @@
 #include "trackerentry.h"
 #include "trackerentrystatus.h"
 #include "torrentimpl.h"
+#include "cachestatus.h"
 
 class QString;
 
