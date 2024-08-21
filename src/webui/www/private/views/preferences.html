@@ -302,17 +302,12 @@
             <option value="2">μTP</option>
         </select>
     </div>
+
+
+    <!-- Tried to keep the same strings, so nothing needs to be re-translated -->
     <fieldset class="settings">
         <legend>QBT_TR(Listening Port)QBT_TR[CONTEXT=OptionsDialog]</legend>
-        <div class="formRow">
-            <label for="port_value">QBT_TR(Port used for incoming connections:)QBT_TR[CONTEXT=OptionsDialog]</label>
-            <input type="text" id="port_value" style="width: 4em;" title="QBT_TR(Set to 0 to let your system pick an unused port)QBT_TR[CONTEXT=OptionsDialog]" />
-            <button type="button" style="margin-left: 1em;" onclick="qBittorrent.Preferences.generateRandomPort();">QBT_TR(Random)QBT_TR[CONTEXT=OptionsDialog]</button>
-        </div>
-        <div class="formRow">
-            <input type="checkbox" id="upnp_checkbox" />
-            <label for="upnp_checkbox">QBT_TR(Use UPnP / NAT-PMP port forwarding from my router)QBT_TR[CONTEXT=OptionsDialog]</label>
-        </div>
+        <table id="listenPorts"></table>
     </fieldset>
 
     <fieldset class="settings">
@@ -1503,6 +1498,8 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
                 updateExportDirEnabled: updateExportDirEnabled,
                 updateExportDirFinEnabled: updateExportDirFinEnabled,
                 addWatchFolder: addWatchFolder,
+                addNetworkInterface: addNetworkInterface,
+                updateMultiInterfacePortEnabled: updateMultiInterfacePortEnabled,
                 updateExcludedFileNamesEnabled: updateExcludedFileNamesEnabled,
                 changeWatchFolderSelect: changeWatchFolderSelect,
                 updateMailNotification: updateMailNotification,
@@ -1683,6 +1680,33 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
         };
 
         // Connection tab
+
+        const addNetworkInterface = (iface, enabled, port) => {
+            console.log("adding network interface", iface, enabled, port);
+            let ifaceDiv = `
+                <tr class="port" data-iface="${iface}">
+                    <td>
+                        <input type="checkbox" id="port_enabled_${iface}" value="true" onclick="qBittorrent.Preferences.updateMultiInterfacePortEnabled('${iface}');" />
+                        <label for="port_value_${iface}">QBT_TR(Port used for incoming connections:)QBT_TR[CONTEXT=OptionsDialog] (${iface})</label>
+                    </td>
+                    <td>
+                        <input type="text" id="port_value_${iface}" style="width: 4em;" title="QBT_TR(Set to 0 to let your system pick an unused port)QBT_TR[CONTEXT=OptionsDialog]" />
+                    </td>
+                </div>
+                </tr>`;
+            document.getElementById("listenPorts").insertAdjacentHTML('beforeend', ifaceDiv);
+
+            $(`port_enabled_${iface}`).setProperty('checked', enabled);
+            if (enabled && port !== 0) {
+                $(`port_value_${iface}`).setProperty('value', port);
+            }
+            $(`port_value_${iface}`).setProperty('disabled', !enabled);
+        }
+
+        const updateMultiInterfacePortEnabled = function(name) {
+            const isPortEnabled = $(`port_enabled_${name}`).getProperty('checked');
+            $(`port_value_${name}`).setProperty('disabled', !isPortEnabled);
+        }
 
         const updateMaxConnecEnabled = function() {
             const isMaxConnecEnabled = $('max_connec_checkbox').getProperty('checked');
@@ -2045,8 +2069,10 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
                         // Connection tab
                         // Listening Port
-                        $('port_value').setProperty('value', pref.listen_port.toInt());
-                        $('upnp_checkbox').setProperty('checked', pref.upnp);
+                        for (const [iface, port] of Object.entries(pref.ports)) {
+                            let enabled = pref.portsEnabled[iface] || false;
+                            addNetworkInterface(iface, enabled, port);
+                        }
 
                         // Connections Limits
                         const max_connec = pref.max_connec.toInt();
@@ -2392,13 +2418,22 @@ Use ';' to split multiple entries. Can use wildcard '*'.)QBT_TR[CONTEXT=OptionsD
 
             // Connection tab
             // Listening Port
-            const listen_port = $('port_value').getProperty('value').toInt();
-            if (isNaN(listen_port) || (listen_port < 0) || (listen_port > 65535)) {
-                alert("QBT_TR(The port used for incoming connections must be between 0 and 65535.)QBT_TR[CONTEXT=HttpServer]");
-                return;
-            }
-            settings.set('listen_port', listen_port);
-            settings.set('upnp', $('upnp_checkbox').getProperty('checked'));
+            const elements = document.querySelectorAll('.port');
+            let ports = {};
+            let portsEnabled = {};
+            Array.from(elements).forEach((e, i) => {
+                const iface = e.dataset.iface;
+                const enabled = document.getElementById(`port_enabled_${iface}`).getProperty('checked');
+                portsEnabled[iface] = enabled;
+                const value = parseInt(document.getElementById(`port_value_${iface}`).getProperty('value')) || 0;
+                ports[iface] = value;
+            });
+
+            settings.set('ports', ports);
+            settings.set('portsEnabled', portsEnabled);
+
+            // Since this patch is purpose-built for VPNs, never enable upnp
+            settings.set('upnp', false);
 
             // Connections Limits
             let max_connec = -1;

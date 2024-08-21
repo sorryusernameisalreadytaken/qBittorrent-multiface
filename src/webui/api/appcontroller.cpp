@@ -184,9 +184,24 @@ void AppController::preferencesAction()
 
     // Connection
     // Listening Port
-    data[u"listen_port"_s] = session->port();
-    data[u"random_port"_s] = (session->port() == 0);  // deprecated
+    QMap<QString, QVariant> outPorts;
+    QMap<QString, QVariant> outPortsEnabled;
+
+    QStringList ifaces = session->getNetworkInterfaces();
+    QMap<QString, QVariant> ports = session->ports();
+    QMap<QString, QVariant> portsEnabled = session->portsEnabled();
+    
+    for (auto i = ifaces.constBegin(); i != ifaces.constEnd(); ++i)
+    {
+        outPorts.insert(*i, QVariant(ports.value(*i, 0)));
+        outPortsEnabled.insert(*i, QVariant(portsEnabled.value(*i, false)));
+    }
+
+    data[u"ports"_s] = QJsonObject::fromVariantMap(outPorts);
+    data[u"portsEnabled"_s] = QJsonObject::fromVariantMap(outPortsEnabled);
+
     data[u"upnp"_s] = Net::PortForwarder::instance()->isEnabled();
+
     // Connections Limits
     data[u"max_connec"_s] = session->maxConnections();
     data[u"max_connec_per_torrent"_s] = session->maxConnectionsPerTorrent();
@@ -618,14 +633,12 @@ void AppController::setPreferencesAction()
 
     // Connection
     // Listening Port
-    if (hasKey(u"random_port"_s) && it.value().toBool())  // deprecated
-    {
-        session->setPort(0);
-    }
-    else if (hasKey(u"listen_port"_s))
-    {
-        session->setPort(it.value().toInt());
-    }
+    if (hasKey(u"ports"_s))
+        session->setPorts(it.value().toMap());
+
+    if (hasKey(u"portsEnabled"_s))
+        session->setPortsEnabled(it.value().toMap());
+
     if (hasKey(u"upnp"_s))
         Net::PortForwarder::instance()->setEnabled(it.value().toBool());
     // Connections Limits

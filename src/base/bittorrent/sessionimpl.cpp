@@ -72,6 +72,7 @@
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QString>
+#include <QMap>
 #include <QThread>
 #include <QThreadPool>
 #include <QTimer>
@@ -492,7 +493,8 @@ SessionImpl::SessionImpl(QObject *parent)
     , m_isBandwidthSchedulerEnabled(BITTORRENT_SESSION_KEY(u"BandwidthSchedulerEnabled"_s), false)
     , m_isPerformanceWarningEnabled(BITTORRENT_SESSION_KEY(u"PerformanceWarning"_s), false)
     , m_saveResumeDataInterval(BITTORRENT_SESSION_KEY(u"SaveResumeDataInterval"_s), 60)
-    , m_port(BITTORRENT_SESSION_KEY(u"Port"_s), -1)
+    , m_ports(BITTORRENT_SESSION_KEY(u"Ports"_s))
+    , m_portsEnabled(BITTORRENT_SESSION_KEY(u"PortsEnabled"_s))
     , m_networkInterface(BITTORRENT_SESSION_KEY(u"Interface"_s))
     , m_networkInterfaceName(BITTORRENT_SESSION_KEY(u"InterfaceName"_s))
     , m_networkInterfaceAddress(BITTORRENT_SESSION_KEY(u"InterfaceAddress"_s))
@@ -544,8 +546,6 @@ SessionImpl::SessionImpl(QObject *parent)
     // It is required to perform async access to libtorrent sequentially
     m_asyncWorker->setMaxThreadCount(1);
 
-    if (port() < 0)
-        m_port = Utils::Random::rand(1024, 65535);
 
     m_recentErroredTorrentsTimer->setSingleShot(true);
     m_recentErroredTorrentsTimer->setInterval(1s);
@@ -1950,55 +1950,24 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
     if (m_listenInterfaceConfigured)
         return;
 
-    if (port() > 0)  // user has specified port number
-        settingsPack.set_int(lt::settings_pack::max_retry_port_bind, 0);
 
     QStringList endpoints;
     QStringList outgoingInterfaces;
-    const QString portString = u':' + QString::number(port());
 
-    for (const QString &ip : asConst(getListeningIPs()))
-    {
-        const QHostAddress addr {ip};
-        if (!addr.isNull())
-        {
-            const bool isIPv6 = (addr.protocol() == QAbstractSocket::IPv6Protocol);
-            const QString ip = isIPv6
-                          ? Utils::Net::canonicalIPv6Addr(addr).toString()
-                          : addr.toString();
-
-            endpoints << ((isIPv6 ? (u'[' + ip + u']') : ip) + portString);
-
-            if ((ip != u"0.0.0.0") && (ip != u"::"))
-                outgoingInterfaces << ip;
-        }
-        else
-        {
-            // ip holds an interface name
-#ifdef Q_OS_WIN
-            // On Vista+ versions and after Qt 5.5 QNetworkInterface::name() returns
-            // the interface's LUID and not the GUID.
-            // Libtorrent expects GUIDs for the 'listen_interfaces' setting.
-            const QString guid = convertIfaceNameToGuid(ip);
-            if (!guid.isEmpty())
-            {
-                endpoints << (guid + portString);
-                outgoingInterfaces << guid;
-            }
-            else
-            {
-                LogMsg(tr("Could not find GUID of network interface. Interface: \"%1\"").arg(ip), Log::WARNING);
-                // Since we can't get the GUID, we'll pass the interface name instead.
-                // Otherwise an empty string will be passed to outgoing_interface which will cause IP leak.
-                endpoints << (ip + portString);
-                outgoingInterfaces << ip;
-            }
-#else
-            endpoints << (ip + portString);
-            outgoingInterfaces << ip;
-#endif
+    auto ports = m_ports.get();
+    for (auto i = ports.constBegin(); i != ports.constEnd(); ++i) {
+        if (m_portsEnabled.get().value(i.key()).toBool() && i.value().toInt() != 0) {
+            endpoints.append(i.key() + u":"_qs + i.value().toString());
         }
     }
+
+    outgoingInterfaces = getNetworkInterfaces();
+
+    if (endpoints.empty() && !outgoingInterfaces.empty()) {
+        // libtorrent doesn't seem to like having no listen port, so add just one.
+        endpoints.append(outgoingInterfaces[0] + u":0"_qs);
+    }
+
 
     const QString finalEndpoints = endpoints.join(u',');
     settingsPack.set_str(lt::settings_pack::listen_interfaces, finalEndpoints.toStdString());
@@ -3324,6 +3293,20 @@ void SessionImpl::networkConfigurationChange(const QNetworkConfiguration &cfg)
 }
 #endif
 
+QStringList Session::getNetworkInterfaces() const {
+    QStringList outIfaces;
+
+    const QList<QNetworkInterface> ifaces = QNetworkInterface::allInterfaces();
+    QList<QNetworkInterface>::const_iterator i;
+    for (i = ifaces.constBegin(); i != ifaces.constEnd(); ++i) {
+        if (i->name() == u"lo"_qs) continue;
+        if (i->addressEntries().empty()) continue;
+        outIfaces.append(i->name());
+    }
+
+    return outIfaces;
+}
+
 QStringList SessionImpl::getListeningIPs() const
 {
     QStringList IPs;
@@ -3627,21 +3610,36 @@ void SessionImpl::setSaveResumeDataInterval(const int value)
     }
 }
 
-int SessionImpl::port() const
+QMap<QString, QVariant> SessionImpl::ports() const
 {
-    return m_port;
+    return m_ports;
 }
 
-void SessionImpl::setPort(const int port)
+void SessionImpl::setPorts(const QMap<QString, QVariant> ports)
 {
-    if (port != m_port)
-    {
-        m_port = port;
-        configureListeningInterface();
+    QMap<QString, QVariant> m_ports2 = m_ports.get();
+    m_ports2.insert(ports);
+    m_ports = m_ports2;
+    configureListeningInterface();
 
-        if (isReannounceWhenAddressChangedEnabled())
-            reannounceToAllTrackers();
-    }
+    if (isReannounceWhenAddressChangedEnabled())
+        reannounceToAllTrackers();
+}
+
+QMap<QString, QVariant> Session::portsEnabled() const
+{
+    return m_portsEnabled;
+}
+
+void Session::setPortsEnabled(const QMap<QString, QVariant> portsEnabled)
+{
+    QMap<QString, QVariant> m_portsEnabled2 = m_portsEnabled.get();
+    m_portsEnabled2.insert(portsEnabled);
+    m_portsEnabled = m_portsEnabled2;
+    configureListeningInterface();
+
+    if (isReannounceWhenAddressChangedEnabled())
+        reannounceToAllTrackers();
 }
 
 QString SessionImpl::networkInterface() const
