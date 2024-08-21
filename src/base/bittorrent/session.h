@@ -763,7 +763,7 @@ namespace BitTorrent
 
         QSet<TorrentID> m_downloadedMetadata;
 
-        QHash<TorrentID, TorrentImpl *> m_torrents;
+        QHash<TorrentID, TorrentImpl*> m_torrents;
         QHash<TorrentID, LoadTorrentParams> m_loadingTorrents;
         QHash<QString, AddTorrentParams> m_downloadedTorrents;
         QHash<TorrentID, RemovingTorrentData> m_removingTorrents;
