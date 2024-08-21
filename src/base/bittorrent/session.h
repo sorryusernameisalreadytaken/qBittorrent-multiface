@@ -260,8 +260,8 @@ namespace BitTorrent
         virtual void setSaveResumeDataInterval(int value) = 0;
         virtual int shutdownTimeout() const = 0;
         virtual void setShutdownTimeout(int value) = 0;
-        virtual int port() const = 0;
-        virtual void setPort(int port) = 0;
+        virtual int ports() const = 0;
+        virtual void setPorts(const QMap<QString, QVariant> ports) = 0;
         virtual bool isSSLEnabled() const = 0;
         virtual void setSSLEnabled(bool enabled) = 0;
         virtual int sslPort() const = 0;
