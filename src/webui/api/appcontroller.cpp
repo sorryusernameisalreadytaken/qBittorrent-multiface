@@ -203,20 +203,19 @@ void AppController::preferencesAction()
 
     // Connection
     // Listening Port
-<<<<<<< HEAD
     data[u"listen_port"_s] = session->port();
     data[u"ssl_enabled"_s] = session->isSSLEnabled();
     data[u"ssl_listen_port"_s] = session->sslPort();
     data[u"random_port"_s] = (session->port() == 0);  // deprecated
     data[u"upnp"_s] = Net::PortForwarder::instance()->isEnabled();
-=======
+
     QMap<QString, QVariant> outPorts;
     QMap<QString, QVariant> outPortsEnabled;
 
     QStringList ifaces = session->getNetworkInterfaces();
     QMap<QString, QVariant> ports = session->ports();
     QMap<QString, QVariant> portsEnabled = session->portsEnabled();
-    
+
     for (auto i = ifaces.constBegin(); i != ifaces.constEnd(); ++i)
     {
         outPorts.insert(*i, QVariant(ports.value(*i, 0)));
@@ -228,7 +227,6 @@ void AppController::preferencesAction()
 
     data[u"upnp"_qs] = Net::PortForwarder::instance()->isEnabled();
 
->>>>>>> qbitmfbt/master
     // Connections Limits
     data[u"max_connec"_s] = session->maxConnections();
     data[u"max_connec_per_torrent"_s] = session->maxConnectionsPerTorrent();
@@ -676,7 +674,6 @@ void AppController::setPreferencesAction()
 
     // Connection
     // Listening Port
-<<<<<<< HEAD
     if (hasKey(u"random_port"_s) && it.value().toBool())  // deprecated
     {
         session->setPort(0);
@@ -691,16 +688,13 @@ void AppController::setPreferencesAction()
     if (hasKey(u"ssl_listen_port"_s))
         session->setSSLPort(it.value().toInt());
     if (hasKey(u"upnp"_s))
-=======
+        Net::PortForwarder::instance()->setEnabled(it.value().toBool());
     if (hasKey(u"ports"_qs))
         session->setPorts(it.value().toMap());
 
     if (hasKey(u"portsEnabled"_qs))
         session->setPortsEnabled(it.value().toMap());
 
-    if (hasKey(u"upnp"_qs))
->>>>>>> qbitmfbt/master
-        Net::PortForwarder::instance()->setEnabled(it.value().toBool());
     // Connections Limits
     if (hasKey(u"max_connec"_s))
         session->setMaxConnections(it.value().toInt());
