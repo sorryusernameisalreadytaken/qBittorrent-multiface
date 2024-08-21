@@ -40,6 +40,7 @@
 #include "torrentcontentremoveoption.h"
 #include "trackerentry.h"
 #include "trackerentrystatus.h"
+#include "torrentimpl.h"
 
 class QString;
 
