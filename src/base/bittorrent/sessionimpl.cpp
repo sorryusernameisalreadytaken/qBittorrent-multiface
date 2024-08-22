@@ -1957,7 +1957,7 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
     auto ports = m_ports.get();
     for (auto i = ports.constBegin(); i != ports.constEnd(); ++i) {
         if (m_portsEnabled.get().value(i.key()).toBool() && i.value().toInt() != 0) {
-            endpoints.append(i.key() + u":"_qs + i.value().toString());
+            endpoints.append(i.key() + u":"_s + i.value().toString());
         }
     }
 
@@ -1965,7 +1965,7 @@ void SessionImpl::applyNetworkInterfacesSettings(lt::settings_pack &settingsPack
 
     if (endpoints.empty() && !outgoingInterfaces.empty()) {
         // libtorrent doesn't seem to like having no listen port, so add just one.
-        endpoints.append(outgoingInterfaces[0] + u":0"_qs);
+        endpoints.append(outgoingInterfaces[0] + u":0"_s);
     }
 
 
@@ -3293,13 +3293,13 @@ void SessionImpl::networkConfigurationChange(const QNetworkConfiguration &cfg)
 }
 #endif
 
-QStringList Session::getNetworkInterfaces() const {
+QStringList SessionImpl::getNetworkInterfaces() const {
     QStringList outIfaces;
 
     const QList<QNetworkInterface> ifaces = QNetworkInterface::allInterfaces();
     QList<QNetworkInterface>::const_iterator i;
     for (i = ifaces.constBegin(); i != ifaces.constEnd(); ++i) {
-        if (i->name() == u"lo"_qs) continue;
+        if (i->name() == u"lo"_s) continue;
         if (i->addressEntries().empty()) continue;
         outIfaces.append(i->name());
     }
@@ -3626,12 +3626,12 @@ void SessionImpl::setPorts(const QMap<QString, QVariant> ports)
         reannounceToAllTrackers();
 }
 
-QMap<QString, QVariant> Session::portsEnabled() const
+QMap<QString, QVariant> SessionImpl::portsEnabled() const
 {
     return m_portsEnabled;
 }
 
-void Session::setPortsEnabled(const QMap<QString, QVariant> portsEnabled)
+void SessionImpl::setPortsEnabled(const QMap<QString, QVariant> portsEnabled)
 {
     QMap<QString, QVariant> m_portsEnabled2 = m_portsEnabled.get();
     m_portsEnabled2.insert(portsEnabled);

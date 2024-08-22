@@ -232,8 +232,10 @@ namespace BitTorrent
         void setPerformanceWarningEnabled(bool enable) override;
         int saveResumeDataInterval() const override;
         void setSaveResumeDataInterval(int value) override;
-        int port() const override;
-        void setPort(int port) override;
+        QMap<QString, QVariant> ports() const override;
+        void setPorts(const QMap<QString, QVariant> ports) override;
+        QMap<QString, QVariant> portsEnabled() const override;
+        void setPortsEnabled(const QMap<QString, QVariant> portsEnabled) override;
         QString networkInterface() const override;
         void setNetworkInterface(const QString &iface) override;
         QString networkInterfaceName() const override;
@@ -402,6 +404,7 @@ namespace BitTorrent
         void setResumeDataStorageType(ResumeDataStorageType type) override;
         bool isMergeTrackersEnabled() const override;
         void setMergeTrackersEnabled(bool enabled) override;
+        QStringList getNetworkInterfaces() const override;
 
         bool isRestored() const override;
 
@@ -686,7 +689,8 @@ namespace BitTorrent
         CachedSettingValue<bool> m_isBandwidthSchedulerEnabled;
         CachedSettingValue<bool> m_isPerformanceWarningEnabled;
         CachedSettingValue<int> m_saveResumeDataInterval;
-        CachedSettingValue<int> m_port;
+        CachedSettingValue<QMap<QString, QVariant>> m_ports;
+        CachedSettingValue<QMap<QString, QVariant>> m_portsEnabled;
         CachedSettingValue<QString> m_networkInterface;
         CachedSettingValue<QString> m_networkInterfaceName;
         CachedSettingValue<QString> m_networkInterfaceAddress;
